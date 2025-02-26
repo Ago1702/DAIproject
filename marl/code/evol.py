@@ -3,27 +3,7 @@ import numpy as np
 import math
 import torch
 from torch import nn
-
-
-def hard_update(target:nn.Module, source:nn.Module):
-    for target_param, param in zip(target.parameters(), source.parameters()):
-        target_param.data.copy_(param.data)
-    
-    try:
-        target.wwid[0] = source.wwid[0]
-    except:
-        None
-
-def soft_update(target, source, tau):
-    for target_param, param in zip(target.parameters(), source.parameters()):
-        target_param.data.copy_(target_param.data * (1.0 - tau) + param.data * tau)
-
-
-def list_mean(l):
-    if len(l) == 0: return None
-    else:
-        return sum(l) / len(l)
-
+from marl.code.utils import hard_update, soft_update, list_mean
 
 class SSNE:
     
