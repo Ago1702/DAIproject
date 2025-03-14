@@ -424,7 +424,7 @@ if use_vmas and not is_sphinx:
         )
     )
     env_with_render = env_with_render.append_transform(
-        VideoRecorder(logger=video_logger, tag="vmas_rendered", skip=1)
+        VideoRecorder(logger=video_logger, tag="vmas_rendered", skip=0)
     )
     with set_exploration_type(ExplorationType.DETERMINISTIC):
         print("Rendering rollout...")
