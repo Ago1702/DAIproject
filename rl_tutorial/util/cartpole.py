@@ -25,7 +25,7 @@ class CartPole():
 
         self._state = [self._cart_position, self._cart_velocity, self._pole_angle, self._pole_angular_velocity]
         self._done = False
-        return self.state
+        return self._state
 
     def step(self, action:float):
         if self._done:
