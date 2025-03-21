@@ -237,7 +237,7 @@ for i in range(1000):
     
 
     reward_records.append(cum_reward)
-    print(f"Run episode {i + 1}, with reward {cum_reward}, mean: {np.average(reward_records)}", end='\r')
+    print(f"Run episode {i + 1}, with reward {cum_reward}, mean: {np.average(reward_records[-50:])}", end='\r')
 
     if np.average(reward_records[-50:]) > 475.0:
         break
@@ -254,7 +254,7 @@ env = gym.wrappers.RecordVideo(env, video_folder='/home/ago/dai_proj/DAIproject/
 
 with torch.no_grad():
     s, _ = env.reset()
-    env.start_recording("init")
+    env.start_recording("final")
     done = False
     cum_reward = 0
     while not done:
