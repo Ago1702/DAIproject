@@ -62,6 +62,7 @@ class EnvWrapper:
             else:
                 self.run_episode(agent, model)
         
+        self.env.close()
         self.env = self.env_type.env(**self.kwargs)
         self.env.reset()
 

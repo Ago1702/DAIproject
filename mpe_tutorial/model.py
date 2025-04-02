@@ -63,13 +63,13 @@ class ActorNet(nn.Module):
 
         self.output = nn.Linear(hidden_dim, out_dim)
 
-    def forward(self, X:torch.Tensor) -> torch.Tensor:
+    def forward(self, X:torch.Tensor) -> tuple[torch.Tensor]:
         X = self.input(X)
         X = self.hidden(X)
-        X = self.output(X)
-        X = F.sigmoid(X)
+        logits = self.output(X)
+        X = F.sigmoid(logits)
         X = X * (self._max - self._min) - self._min
-        return X
+        return X, logits
 
     def noisy_forward(self, X:torch.Tensor) -> torch.Tensor:
         X = self.input(X)

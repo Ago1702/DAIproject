@@ -164,3 +164,5 @@ cython_debug/
 
 */mariani.py
 tmp/*
+wandb
+mpe_tutorial/models
