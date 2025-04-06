@@ -1,73 +1,114 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-class Actor(nn.Module):
-    '''
-    Class Actor: Basic actor class for a first test
-    '''
 
-    def __init__(self, num_input:int, num_output:int, num_hidden:int=1, hidden_size:int=256, mean:float=0, std:float=0.4):
-        super(Actor, self).__init__()
-        self.num_input = num_input
-        self.num_output = num_output
-        self.num_hidden = num_hidden
+'''The initialization policies are copied from the original paper'''
+
+def weights_init_policy_fn(m:nn.Module):
+    class_name = m.__class__.__name__
+    if class_name.find('Linear') != -1:
+        torch.nn.init.xavier_uniform_(m.weight, gain=0.5)
+        torch.nn.init.constant_(m.bias, 0)
+
+def weights_init_value_fn(m:nn.Module):
+    class_name = m.__class__.__name__
+    if class_name.find('Linear') != -1:
+        torch.nn.init.xavier_uniform_(m.weight, gain=1)
+        torch.nn.init.constant_(m.bias, 0)
+
+class TeamNet(nn.Module):
+    def __init__(self, num_heads:int, num_inputs:int, num_actions:int, hidden_size:int=64, hidden_layer:int=1):
+        super(TeamNet, self).__init__()
+
+        self.num_heads = num_heads
+        self.num_inputs = num_inputs
+        self.num_actions = num_actions
         self.hidden_size = hidden_size
-        self.mean = mean
-        self.std = std
-        self.noise = torch.Tensor(self.num_output)
+        self.hidden_layer = hidden_layer
+
+        self.input = nn.Linear(num_inputs, hidden_size)
+
+        hidden = [nn.ReLU()]
+        for i in range(hidden_layer):
+            hidden.append(nn.Linear(hidden_size, hidden_size))
+            hidden.append(nn.ReLU())
         
-        self.input_layer = nn.Linear(self.num_input, self.hidden_size)
-        hidden_list = [nn.LeakyReLU()]
-        for i in range(self.num_hidden):
-            hidden_list.append(nn.Linear(self.hidden_size, self.hidden_size))
-            hidden_list.append(nn.LeakyReLU())
-        self.hidden_layer = nn.Sequential(*hidden_list)
+        self.hidden = nn.Sequential(*hidden)
 
-        self.output_layer = nn.Linear(self.hidden_size, self.num_output)
+        self.actions = nn.Linear(hidden_size, num_heads*num_actions)
+
+        self.register_buffer("noise", torch.zeros(num_actions * num_heads))
+
+        self.apply(weights_init_policy_fn)
+
+    #TODO: Add support for different agent
+
+    def forward(self, X:torch.Tensor) -> torch.Tensor:
+        X = self.input.forward(X)
+        X = self.hidden.forward(X)
+        X = self.actions.forward(X)
+        return F.tanh(X)
     
-    def forward(self, X:torch.Tensor):
-        if len(X.shape) < 2:
-            X = X.unsqueeze(0)
-        tmp = X
-        tmp = self.input_layer(tmp)
-        tmp = self.hidden_layer(tmp)
-        tmp = self.output_layer(tmp)
-        return torch.tanh(tmp)
+    def head_select(self, X, head) -> torch.Tensor:
+        if head == -1:
+            return X
+        else:
+            start = head * self.num_actions
+            return X[:,  start:start + self.num_actions]
     
-    def noisy_forward(self, X:torch.Tensor):
-        tmp = self.forward(X) + self.noise.normal_(self.mean, self.std)
-        return tmp
+    def action(self, X:torch.Tensor, head:int=-1) -> torch.Tensor:
+        X = self.forward(X)
+        return self.head_select(X, head)
 
+    def noise_action(self, X:torch.Tensor, head:int=-1) -> torch.Tensor:
+        X = self.forward(X) + self.noise.normal_(0., 0.4)
+        return self.head_select(X, head)      
 
-class Critic(nn.Module):
-    '''
-    Class Critic: A simple critic network
-    '''
+        
+class CriticNet(nn.Module):
 
-    def __init__(self, num_input:int, num_output:int, num_hiddem:int=1, hidden_size:int=256):
-        super(Critic, self).__init__()
-
-        self.num_input = num_input
-        self.num_output = num_output
-        self.num_hidden = num_hiddem
+    def __init__(self, state_size:int, actions_size:int, hidden_size:int=64, hidden_layer:int=1):
+        super(CriticNet, self).__init__()
+        self.state_size = state_size
+        self.actions_size = actions_size
         self.hidden_size = hidden_size
+        self.hidden_layer = hidden_layer
 
-        self.input_layer = nn.Linear(self.num_input, self.hidden_size)
-        hidden_list = [nn.LeakyReLU()]
-        for i in range(self.num_hidden):
-            hidden_list.append(nn.Linear(self.hidden_size, self.hidden_size))
-            hidden_list.append(nn.LeakyReLU())
-        self.hidden_layer = nn.Sequential(*hidden_list)
-        self.output_layer = nn.Linear(self.hidden_size, 1)
+        net1 = [nn.Linear(state_size + actions_size, hidden_size)]
+
+        net1.append(nn.ReLU())
+        for i in range(hidden_layer):
+            net1.append(nn.Linear(hidden_size, hidden_size))
+            net1.append(nn.ReLU())
+
+        net1.append(nn.Linear(hidden_size, 1))
+        self.net1 = nn.Sequential(*net1)
+
+        net2 = [nn.Linear(state_size + actions_size, hidden_size)]
+
+        net2.append(nn.ReLU())
+        for i in range(hidden_layer):
+            net2.append(nn.Linear(hidden_size, hidden_size))
+            net2.append(nn.ReLU())
+
+        net2.append(nn.Linear(hidden_size, 1))
+        self.net2 = nn.Sequential(*net2)
+
+    def forward(self, observation, actions) -> torch.Tensor:
+        X = torch.cat([observation, actions], 1)
+        X1 = self.net1.forward(X)
+        X2 = self.net2.forward(X)
+        return X1, X2
     
-    def forward(self, X:torch.Tensor):
-        if len(X.shape) < 2:
-            X = X.unsqueeze(0)
-        tmp = X
-        tmp = self.input_layer(tmp)
-        tmp = self.hidden_layer(tmp)
-        tmp = self.output_layer(tmp)
-        return torch.tanh(tmp)
-
-        
-        
+'''if __name__ == '__main__':
+    net = CriticNet(5, 5)
+    nac = TeamNet(3, 5, 5)
+    print(net)
+    obs = torch.zeros((1, 5)).normal_()
+    act = torch.zeros((1, 5)).normal_()
+    print(net.forward(obs, act))
+    print(nac.action(obs))
+    print(nac.action(obs, 0))
+    print(nac.action(obs, 1))
+    print(nac.action(obs, 2))'''
