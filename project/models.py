@@ -18,7 +18,7 @@ def weights_init_value_fn(m:nn.Module):
         torch.nn.init.constant_(m.bias, 0)
 
 class TeamNet(nn.Module):
-    def __init__(self, num_heads:int, num_inputs:int, num_actions:int, hidden_size:int=64, hidden_layer:int=1):
+    def __init__(self, num_heads:int, num_inputs:int, num_actions:int, hidden_size:int=64, hidden_layer:int=2):
         super(TeamNet, self).__init__()
 
         self.num_heads = num_heads
@@ -26,6 +26,8 @@ class TeamNet(nn.Module):
         self.num_actions = num_actions
         self.hidden_size = hidden_size
         self.hidden_layer = hidden_layer
+        self.eps = 0.95
+
 
         self.input = nn.Linear(num_inputs, hidden_size)
 
@@ -48,27 +50,31 @@ class TeamNet(nn.Module):
         X = self.input.forward(X)
         X = self.hidden.forward(X)
         X = self.actions.forward(X)
-        return F.tanh(X)
+        return F.sigmoid(X)
     
-    def head_select(self, X, head) -> torch.Tensor:
+    def head_select(self, X:torch.Tensor, head) -> torch.Tensor:
         if head == -1:
             return X
         else:
             start = head * self.num_actions
+            if len(X.shape) < 2:
+                return X[start:start + self.num_actions]
             return X[:,  start:start + self.num_actions]
     
     def action(self, X:torch.Tensor, head:int=-1) -> torch.Tensor:
         X = self.forward(X)
-        return self.head_select(X, head)
+        X = self.head_select(X, head)
+        return X
 
     def noise_action(self, X:torch.Tensor, head:int=-1) -> torch.Tensor:
-        X = self.forward(X) + self.noise.normal_(0., 0.4)
-        return self.head_select(X, head)      
+        X = (1 - self.eps) * self.forward(X) + self.eps * self.noise.normal_(0., 0.4)
+        X = self.head_select(X, head) 
+        return X
 
         
 class CriticNet(nn.Module):
 
-    def __init__(self, state_size:int, actions_size:int, hidden_size:int=64, hidden_layer:int=1):
+    def __init__(self, state_size:int, actions_size:int, hidden_size:int=64, hidden_layer:int=2):
         super(CriticNet, self).__init__()
         self.state_size = state_size
         self.actions_size = actions_size
