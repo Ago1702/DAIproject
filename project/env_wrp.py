@@ -96,3 +96,16 @@ class EnvWrapper:
 
                 buffer[id].add((obs, act, rew, new_obs))
         return rewards_history
+    
+    def render_round(self, render_mode:str='human', model = None):
+        self.env = simple_spread_v3.env(render_mode=render_mode, **self.kwargs)
+        self.env.reset()
+        for agent in self.env.agent_iter():
+            if isinstance(model, dict):
+                self.run_episode(agent, model[agent])
+            else:
+                self.run_episode(agent, model)
+        
+        self.env.close()
+        self.env = simple_spread_v3.env(**self.kwargs)
+        self.env.reset()

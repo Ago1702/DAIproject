@@ -42,7 +42,7 @@ eps_min = 0.05
 eps_red = 0.9995
 gamma = 0.95
 max_iter = 50000
-WANDB = True
+WANDB = False
 rep = 7
 
 if WANDB:
@@ -157,7 +157,7 @@ while step < max_iter:
         run.log({'team_loss': a_loss, 'q_loss': q_loss.item(), 'avg_reward':avg_reward, 'eps':actor.eps,
                  'critic_lr':critic_scheduler.get_last_lr()[0], 'actor_lr':actor_scheduler.get_last_lr()[0]})
     
-    print(f"avg_reward {avg_reward}, q_loss {q_loss.item()}, actor_loss {a_loss}",)
+    print(f"{step}: avg_reward {avg_reward}, q_loss {q_loss.item()}, actor_loss {a_loss}",)
 
     update_target_params(actor, target_actor, 0.05)
     update_target_params(critic, target_critic, 0.05)

@@ -56,6 +56,6 @@ for agent in env.agents:
     target_critic[agent].load_state_dict(torch.load(f"{PATH}/{agent}/critic_target-15000", weights_only=True))
     target_critic[agent].eval()
 
-for i in range(10):
+for i in range(5):
     with torch.no_grad():
         env.render_round(model=target_actor)
