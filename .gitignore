@@ -166,3 +166,4 @@ cython_debug/
 tmp/*
 wandb
 mpe_tutorial/models
+*/save/*
